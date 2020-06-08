@@ -6,7 +6,7 @@
 Brian McMahon edit for CSC 594 Content Theory based on 
 Romance.lisp created by Clark Elliott for CSC594
 
-Idea:
+Original Idea:
 
 I borrowed a few simple ideas from the shared Human Romantic Love start on a content theory we created, and
 place these common-sense ideas into a few rules. No claims of importance or social correctness!
@@ -28,9 +28,12 @@ collect hundreds (along with many indexes each) and deliver them at appropriate 
 Note: If you extend this, keep in mind that inside quotes, lisp is forgiving, but inside of lists
 then commas, quotes, periods and question markes have programmatic value.
 
+BM Idea:
+
+Adapt the original Romance.lisp program for acute stress to try and create matching patterns for agents to address if a situation will be stressful to them
+
+
 |#
-
-
 
 (setf *wm* '(empty start))
 (setf *rules* nil)
@@ -81,36 +84,28 @@ then commas, quotes, periods and question markes have programmatic value.
    (add check-not-compatible)
    (add create-other-user)))
 
-(defrule CreateOtherUser 50
-  (
-   create-other-user)
-  -->
-  ((add (other-user leslie) (leslie pref young) (leslie pref smart)) ; Can add here
-   (build-leslie) ; Or can call a lisp funcion to do it.
-   (remove create-other-user) ; just run once.
-   ))
 
 
-;;; Sometimes people share similarities
-(defrule FamilialRelation-B 55 ; From the B cycle, fire this one first.
+;;; Individuals related to you
+(defrule familialRelation-B 55 ; From the B cycle, fire this one first.
   (
    (user ?u)
    (other-user ?o)
-   (?u prefers ?x)
-   (?o prefers ?x)
-   (not (pref-check ?x))
+   (?u familial ?x)
+   (?o familial ?x)
+   (not (familial-check ?x))
    )
   -->
   (
-   (add (pref-check ?x)) ; Don't repeat this preference
-   (add (similar ?u ?o)) ; Are similar to one another
-   (add (similar ?o ?u)) 
-   (print (?u and ?o share the preference... ?x))
+   (add (familial-check ?x)) ; Don't repeat this preference
+   (add (family ?u ?o)) ; Are related to one another
+   (add (family ?o ?u)) 
+   (print (?u and ?o are related... ?x))
    )
   )
   
- ;;; Sometimes people share aversions
-(defrule SimilarAversToYou-B 55 ; From the B cycle, fire this one first.
+ ;;; Social connections
+(defrule socialRelation-B 55 ; From the B cycle, fire this one first.
   (
    (user ?u)
    (other-user ?o)
@@ -323,51 +318,24 @@ then commas, quotes, periods and question markes have programmatic value.
     )
   )
 
-(defun build-leslie ()
-  (let (
-	(temp nil)
-	(user 'leslie)
-	(prefs '(creative kind nice short long-term-relationship))
-	(avers '(bad-health old tall uneducated no-humor))
-	(quals '(tall smart mean thoughtful generous)))
-    (add-wm '(other-user leslie))
-    (mapcar
-     #'(lambda (pref)
-	 (setf temp (list user 'prefers pref))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     prefs)
 
-    (mapcar
-     #'(lambda (aver)
-	 (setf temp (list user 'has-aversion aver))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     avers)
 
-    (mapcar
-     #'(lambda (qual)
-	 (setf temp (list user 'has-quality qual))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     quals)
-    'leslie-built
-    )
-  )
+
+
 
 (defun build-user ()
   (let (
 	(temp nil)
 	(user nil)
-	(prefs '(creative kind nice tall short-term-relationship))
+	(familial '(john joe bob lisa))
 	(avers '(bad-health short uneducated no-humor))
 	(quals '(tall smart nice generous)))
     (format t "OK. I'll build your profile. What is your first name?~%")
     (setf user (read))
     (add-wm (list 'user user))
     (mapcar
-     #'(lambda (pref)
-	 (setf temp (list user 'prefers pref))
+     #'(lambda (familial)
+	 (setf temp (list user 'family familial))
 	 (when (not (member temp *wm* :test #'equal))
 	   (add-wm temp)))
      prefs)
@@ -390,15 +358,11 @@ then commas, quotes, periods and question markes have programmatic value.
   )
 
 (setf stories
-      '((short-or-long-term
+      '((situation1
 
-       "Jill and Addison were in a relationship. Over time it became clear that Jill loved Addison, but
-Addison did not love Jill back. This became a problem. There was resentment on both sides. It
-turns out that Jill was always looking for a long-term relationship, but Addison was only
-looking for a short-term relationship. They never discussed it and this is why there were
-failed expectations on both sides. It would have been better if they had understood their
-differences early on and formed some agreement about them.")
+       "A dog walks past you .")
+(situation2
+
+       "A robber has entered your house an is going to attack you ")
 ))
-
-(defun tell-the-story ()
-  (format t "~%Here is a relevant story:~%~%~a~%" (cadr (assoc 'short-or-long-term stories))))
+))
