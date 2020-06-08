@@ -17,5 +17,5 @@ Code:
 - analyzesituation.py
   rough logic that would be implemented for the true/false evaluation that is attempting to be implemented in the acutestress.lisp file
 
--situation.txt
+- situation.txt
   these files are rudimentary situation files for assesment by agents
