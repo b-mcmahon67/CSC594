@@ -91,15 +91,15 @@ Adapt the original Romance.lisp program for acute stress to try and create match
   (
    (user ?u)
    (other-user ?o)
-   (?u familial ?x)
-   (?o familial ?x)
+   (?u family ?x)
+   (?o family ?x)
    (not (familial-check ?x))
    )
   -->
   (
    (add (familial-check ?x)) ; Don't repeat this preference
-   (add (family ?u ?o)) ; Are related to one another
-   (add (family ?o ?u)) 
+   (add (familial ?u ?o)) ; Are related to one another
+   (add (familial ?o ?u)) 
    (print (?u and ?o are related... ?x))
    )
   )
@@ -121,11 +121,11 @@ Adapt the original Romance.lisp program for acute stress to try and create match
    (print (?u and ?o share the aversion... ?x))
    )
   )
-  ;;; Sometimes people share qualities
+  ;;; Story match physical harm characteristics of agent
 (defrule SimilarQualsToYou-B 55 ; From the B cycle, fire this one first.
   (
    (user ?u)
-   (other-user ?o)
+   (story ?s)
    (?u has-quality ?x)
    (?o has-quality ?x)
    (not (pref-qual?x))
@@ -139,14 +139,12 @@ Adapt the original Romance.lisp program for acute stress to try and create match
    )
   )
  
-;;; Sometimes people share multiple characteristics
+;;; Story match physical emotional characteristics of agent
 (defrule similarPersonalities-B 55 ; From the B cycle, fire this second first.
   (
    (user ?u)
-   (other-user ?o)
+   (story ?s)
 	(and
-		(?o similar ?u)
-		(?u similar ?o)
 		(?o similarAversion ?u)
 		(?u similarAversion ?o)
 		(?o similarQuals ?u)
@@ -159,177 +157,15 @@ Adapt the original Romance.lisp program for acute stress to try and create match
    (print (?u and ?o are highly compatible together))
    )
   )
-
-
-;;; Sometimes people are dissimilar in some ways
-(defrule DisSimilarToYou-B 50 ; From the B cycle, fire this one third
-  ((user ?u)
-   (other-user ?o)
-   (?u prefers ?x)
-   (not (?o prefers ?x))
-   (not (pref-dis-check ?x)))
-  -->
-  ((add (pref-dis-check ?x)) ; Don't repeat this preference
-   (add (dissimilar ?u ?o)) ; Are similar to one another
-   (add (dissimilar ?o ?u))
-   (add (disagreement ?u ?o ?x))
-   (print (?u has the preference ?x that ?o does not))))
-
-;;; If one or the other wants a long-term relationship and their opposite wants a short-term relationship
-;;; then they are not compatible.
-(defrule NotCompatible-C1 45 ; From the C cylce, fire this one first.
-  (check-not-compatible
-   (other-user ?o)
-   (user ?u)
-   (or
-    (and
-     (?o prefers short-term-relationship)
-     (?u prefers long-term-relationship))
-    (and
-     (?o prefers long-term-relationship)
-     (?u prefers short-term-relationship))))
-  -->
-  ((print "When one prefers long-term and the other prefers short-term you aren't compatible")
-   ))
-
-;;; If one wants a long-term relationship and the other wants a short-term relationship
-;;; the one who wants a long-term relationship will tend to get hurt
-(defrule NotCompatible-C 40 ; From the C cylce, fire this one second.
-  (check-not-compatible
-   (other-user ?o)
-   (user ?u)
-   (?o prefers long-term-relationship)
-   (?u prefers short-term-relationship))
-  -->
-  ((remove check-not-compatible)
-   (add (hurt ?u ?o))
-   (add (disagreement ?u ?o short-or-long-term))
-   (print (Because ?o wants long term but ?u wants short term the relationship will probably hurt ?o))
-   ))
-
-;;; People who get hurt may get angry
-(defrule HurtGetAngry-D 35
-  ((hurt ?x ?y)
-   )
-  -->
-  ((remove (hurt ?x ?y))
-   (add disagreement ?x ?y hurt)
-   (add (angry-at ?y ?x))
-   (print (Because ?y is hurt... ?y might get angry at ?x))))
-
-;;; It is not a good idea to get into a romance with someone who will be angry at you
-;;; Plus it is not nice to make them unhappy.
-(defrule LoveAdvice-D 33
-  ((user ?u)
-   (angry-at ?o ?u))
-  -->
-  ((print (Hey ?u))
-   (ask "I have some advice for you. Would you like to hear it?"
-       ((print (?u you should not form a relationship with ?o))
-	(print (Why... because if you do ?o might get angry at you))
-	(print (And angry people are unpleasant to be around. Plus why make ?o unhappy...)))
-       ((print "OK. Sorry. It was good advice.")
-	(add (no-accept-advice ?u about ?o))))
-   (add (disagreement ?o ?u angry-about-short-term))
-   (add tell-story)
-   (add form-agreement)
-   (remove (angry-at ?o ?u))))
-
-;;; People who don't accept advice about romance have trouble working out problems.
-(defrule NoAdvice-D 31
-  ((user ?u)
-   (no-accept-advice ?u about ?o))
-  -->
-  ((remove (no-accept-advice ?u about ?o))
-   (print (My advice to ?o is to avoid a relationship with ?u because...))
-   (print (...People like ?u who do not accept advice about romance cannot deal with problems and never change.))))
-
-(defrule FormAgreement-E1 12
-  (form-agreement
-   (user ?u)
-   (other-user ?o)
-   (not (no-accept-advice ?u about ?o))
-   (or
-    (disagreement ?u ?o ?z)
-    (disagreement ?o ?u ?z)))
-  -->
-  ((remove form-agreement)
-   (add form-agreement2)
-   (print "Of course even though you are not compatible. If the two of you still wanted a relationship...")
-   (print "Then consider...")))
-
-(defrule FormAgreement-E2 10
-  (form-agreement2
-   (disagreement ?u ?o ?z))
-  -->
-  ((print (?u and ?o should try to reach some agreement about their difference ?z))
-   (remove (disagreement ?u ?o ?z))))
-
-(defrule TellStory-F2 2 ; Very low priority. Should come last.
-  (tell-story)
-  -->
-  ((remove tell-story)
-   (tell-the-story)))
-
-
-
-;;; Our LISP functions that get called on the RHS of rules:
-;;; Note that we can also build rules dynamically while the system is running.
-
-(defun gather-description ()
-  (let ((user nil)(prefs nil)(self nil)
-	(prefx '(beauty young healthy refined smart creative kind generous thoughtful nice short tall strong))
-	(aversx '(bad-health old short tall smart uneducated mean coarse thrifty no-humor)))
-    
-    (format t "First, what is your name?~%")
-    (setf user (read))
-    (format t "Thanks ~s, now we'll get some information from you.~%~%" user)
-    (format t "Enter tokens from each of the following lists that apply to your tastes. Then terminate~%")
-    (format t "your data entry with a space then the slash character: / ~%~%")
-    (format t "Preferences: ~s~%" prefx)
-    (setf prefs (read-delimited-list #\/))
-    (format t "Aversions: ~s~%" aversx)
-    (setf avers (read-delimited-list #\/))
-    (format t "Which of the above tokens apply to you?~%")
-    (setf quals (read-delimited-list #\/))
-
-    (mapcar
-     #'(lambda (pref)
-	 (setf temp (list user 'prefers pref))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     prefs)
-
-    (mapcar
-     #'(lambda (aver)
-	 (setf temp (list user 'has-aversion aver))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     avers)
-
-    (mapcar
-     #'(lambda (qual)
-	 (setf temp (list user 'has-quality qual))
-	 (when (not (member temp *wm* :test #'equal))
-	   (add-wm temp)))
-     quals)
-    *wm*
-    (add-wm (list 'user user))
-    )
-  )
-
-
-
-
-
-
+  
 (defun build-user ()
   (let (
 	(temp nil)
 	(user nil)
 	(familial '(john joe bob lisa))
-	(avers '(bad-health short uneducated no-humor))
-	(quals '(tall smart nice generous)))
+	(social '(bad-health short uneducated no-humor))
+	(emotharm '(x y z))
+	(phsyharm '(attack steal rob))
     (format t "OK. I'll build your profile. What is your first name?~%")
     (setf user (read))
     (add-wm (list 'user user))
@@ -338,21 +174,21 @@ Adapt the original Romance.lisp program for acute stress to try and create match
 	 (setf temp (list user 'family familial))
 	 (when (not (member temp *wm* :test #'equal))
 	   (add-wm temp)))
-     prefs)
+     familials)
 
     (mapcar
-     #'(lambda (aver)
-	 (setf temp (list user 'has-aversion aver))
+     #'(lambda (emotharm)
+	 (setf temp (list user 'has-emotion emot))
 	 (when (not (member temp *wm* :test #'equal))
 	   (add-wm temp)))
-     avers)
+     emots)
 
     (mapcar
-     #'(lambda (qual)
-	 (setf temp (list user 'has-quality qual))
+     #'(lambda (phsyharm)
+	 (setf temp (list user 'has-phsyical phys))
 	 (when (not (member temp *wm* :test #'equal))
 	   (add-wm temp)))
-     quals)
+     physicals)
     'leslie-built
     )
   )
